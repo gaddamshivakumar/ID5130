@@ -1,5 +1,5 @@
 program mataddition_multiplication
-    use, intrinsic ::  iso_fortran_env, only : DP => REAL64
+    use, intrinsic :: iso_fortran_env, only : DP => REAL64
     implicit none
     integer :: N, thread_count, i, j, k
     real(kind=dp) :: rnum, t1, t2
