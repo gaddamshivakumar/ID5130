@@ -2,9 +2,7 @@ module procedures
     use, intrinsic :: iso_fortran_env, only : dp => real64
     use omp_lib
     implicit none
-    
 contains
-
 
 ! function values ------------------------------------------------------
 elemental real(kind=dp) function fun(x)
@@ -14,7 +12,6 @@ elemental real(kind=dp) function fun(x)
     fun = sin(5*x)
 end function fun
 
-
 ! analytical values of derivative of the function ----------------------
 elemental real(kind=dp) function dfun_ana(x)
     implicit none
@@ -22,7 +19,6 @@ elemental real(kind=dp) function dfun_ana(x)
 
     dfun_ana = 5*cos(5*x)
 end function dfun_ana
-
 
 ! construction of system of linear equations from pade's scheme --------
 subroutine pade_scheme(npoints, h, xpoints, amatrix, bvector)
@@ -40,7 +36,6 @@ subroutine pade_scheme(npoints, h, xpoints, amatrix, bvector)
         amatrix(i, i) = 4.0_dp
         amatrix(i, i+1) = 1.0_dp
     end do
-
     ! Construct the b-vector
     bvector(1) = (1/h)*(-5.0_dp/2.0_dp*fun(xpoints(1)) + 2.0_dp*fun(xpoints(2)) + &
     1.0_dp/2.0_dp*fun(xpoints(3)))
@@ -68,7 +63,6 @@ subroutine serial_ludecomp(npoints, amatrix, bvector, df_sol_s)
         lvec(i) = amatrix(i,i-1)/uvec(i-1)
         uvec(i) = amatrix(i,i) - lvec(i)*amatrix(i-1,i)
     end do
-
     ! solving for z such that Lz=b
     zvec(1) = bvector(1)
     do i = 2, npoints
@@ -171,7 +165,7 @@ program problem2
     integer :: unit_nr, istat, i
     character(len=1024) :: msg
 
-    integer, parameter :: npoints=25, thread_count=2
+    integer, parameter :: npoints=1000, thread_count=1
     real, parameter :: xleft=0.0_dp, xright=3.0_dp
     real(kind=dp) :: tstart, tend, h
     real(kind=dp), dimension(npoints) :: xpoints, bvector, df_ana, df_sol_s, df_sol_p
@@ -201,13 +195,15 @@ program problem2
 
     ! parallel program - threads
     call cpu_time(tstart)
+    ! do i = 1, 100000  ! for calculation of time
     call recursive_doubling(thread_count, npoints, amatrix, bvector, df_sol_p)
     ! print *, df_sol_p
+    ! end do
     call cpu_time(tend)
     print *, 'parallel time: ',tend-tstart
 
-    ! print *, 'max error (analytical vs serial): ', maxval(abs(df_ana(10:90)-df_sol_s(10:90)))
-    ! print *, 'max error (analytical vs parallel): ', maxval(abs(df_ana(10:90)-df_sol_p(10:90)))
+    print *, 'max error (analytical vs serial): ', maxval(abs(df_ana(10:90)-df_sol_s(10:90)))
+    print *, 'max error (analytical vs parallel): ', maxval(abs(df_ana(10:90)-df_sol_p(10:90)))
     print *, 'max error (serial vs parallel): ', maxval(abs(df_sol_s-df_sol_p))
 
     ! write the output data
