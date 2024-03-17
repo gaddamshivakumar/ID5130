@@ -28,9 +28,10 @@ end module procedures
 
 program problem1
     use, intrinsic :: iso_fortran_env, only : dp => real64
+    use :: mpi
     use :: procedures
+
     implicit none
-    include "mpif.h"
     real(kind=dp), parameter :: pi = 3.14159265358_dp, ana_val = 0.198557298811136
     integer :: i, myid, nprocs, mpierror, status(MPI_STATUS_SIZE)
     integer :: n, ln, iproc
@@ -42,9 +43,27 @@ program problem1
     call MPI_COMM_SIZE(MPI_COMM_WORLD, nprocs, mpierror)
     call MPI_COMM_RANK(MPI_COMM_WORLD, myid, mpierror)
 
-    n = 256
-    a = 1.0_dp
-    b = pi
+    if (myid.eq.0) then
+        write(*,*) "enter the value of n(integer): "
+        read(*,*) n
+        write(*,*) "enter the values of a, b (real): "
+        read(*,*) a, b
+    end if
+
+    if (nprocs.gt.1) then
+        if (myid.eq.0) then
+            do iproc = 1, nprocs-1
+                call mpi_send(n, 1, mpi_integer, iproc, 1, mpi_comm_world, mpierror)
+                call mpi_send(a, 1, mpi_double, iproc, 2, mpi_comm_world, mpierror)
+                call mpi_send(b, 1, mpi_double, iproc, 3, mpi_comm_world, mpierror)
+            end do
+        else
+            call mpi_recv(n, 1, mpi_integer, 0, 1, mpi_comm_world, status, mpierror)
+            call mpi_recv(a, 1, mpi_double, 0, 2, mpi_comm_world, status, mpierror)
+            call mpi_recv(b, 1, mpi_double, 0, 3, mpi_comm_world, status, mpierror)
+        end if
+    end if
+
     final_result = 0.0_dp
 
     h = (b-a)/n
@@ -53,17 +72,9 @@ program problem1
     la = a + myid * ln*h
     lb = la + ln*h
     lsum = trapz_proc(la, lb, ln, h)
-
-
-    if (myid.ne.0) then
-        call MPI_SEND(lsum, 1, mpi_double, 0, 0, MPI_COMM_WORLD, mpierror)
-    else
-        final_result = lsum
-        do iproc = 1, nprocs-1
-            call MPI_RECV(lsum, 1, mpi_double, iproc, 0, MPI_COMM_WORLD, status, mpierror)
-            final_result = final_result + lsum
-        end do
-    end if
+    
+    call mpi_reduce(lsum, final_result, 1, mpi_double, mpi_sum, 0, mpi_comm_world, mpierror)
+    
     if (myid.eq.0) then
         print *, "The area is equal to", final_result
         print *, "The error: ", abs(ana_val-final_result)*100/ana_val, "%"

@@ -55,14 +55,16 @@ program problem1
     lsum = trapz_proc(la, lb, ln, h)
 
 
-    if (myid.ne.0) then
+    if ((nprocs.gt.1).and.(myid.ne.0)) then
         call MPI_SEND(lsum, 1, mpi_double, 0, 0, MPI_COMM_WORLD, mpierror)
     else
         final_result = lsum
-        do iproc = 1, nprocs-1
-            call MPI_RECV(lsum, 1, mpi_double, iproc, 0, MPI_COMM_WORLD, status, mpierror)
-            final_result = final_result + lsum
-        end do
+        if (nprocs.gt.1) then
+            do iproc = 1, nprocs-1
+                call MPI_RECV(lsum, 1, mpi_double, iproc, 0, MPI_COMM_WORLD, status, mpierror)
+                final_result = final_result + lsum
+            end do
+        end if
     end if
     if (myid.eq.0) then
         print *, "The area is equal to", final_result
